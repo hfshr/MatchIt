@@ -229,35 +229,43 @@
 #'
 #' # 1:1 greedy NN matching on the PS
 #' m.out1 <- matchit(treat ~ age + educ + race + nodegree +
-#'                     married + re74 + re75, data = lalonde,
-#'                   method = "nearest")
+#'   married + re74 + re75,
+#' data = lalonde,
+#' method = "nearest"
+#' )
 #' m.out1
 #' summary(m.out1)
 #'
 #' # 3:1 NN Mahalanobis distance matching with
 #' # replacement within a PS caliper
 #' m.out2 <- matchit(treat ~ age + educ + race + nodegree +
-#'                     married + re74 + re75, data = lalonde,
-#'                   method = "nearest", replace = TRUE,
-#'                   mahvars = ~ age + educ + re74 + re75,
-#'                   ratio = 3, caliper = .02)
+#'   married + re74 + re75,
+#' data = lalonde,
+#' method = "nearest", replace = TRUE,
+#' mahvars = ~ age + educ + re74 + re75,
+#' ratio = 3, caliper = .02
+#' )
 #' m.out2
 #' summary(m.out2, un = FALSE)
 #'
 #' # 1:1 NN Mahalanobis distance matching within calipers
 #' # on re74 and re75 and exact matching on married and race
-#' m.out3 <- matchit(treat ~ age + educ + re74 + re75, data = lalonde,
-#'                   method = "nearest", distance = "mahalanobis",
-#'                   exact = ~ married + race,
-#'                   caliper = c(re74 = .2, re75 = .15))
+#' m.out3 <- matchit(treat ~ age + educ + re74 + re75,
+#'   data = lalonde,
+#'   method = "nearest", distance = "mahalanobis",
+#'   exact = ~ married + race,
+#'   caliper = c(re74 = .2, re75 = .15)
+#' )
 #' m.out3
 #' summary(m.out3, un = FALSE)
 #'
 #' # 2:1 variable ratio NN matching on the PS
 #' m.out4 <- matchit(treat ~ age + educ + race + nodegree +
-#'                     married + re74 + re75, data = lalonde,
-#'                   method = "nearest", ratio = 2,
-#'                   min.controls = 1, max.controls = 12)
+#'   married + re74 + re75,
+#' data = lalonde,
+#' method = "nearest", ratio = 2,
+#' min.controls = 1, max.controls = 12
+#' )
 #' m.out4
 #' summary(m.out4, un = FALSE)
 #'
@@ -266,13 +274,12 @@
 #'
 NULL
 
-matchit2nearest <-  function(treat, data, distance, discarded,
-                             ratio = 1, s.weights = NULL, replace = FALSE, m.order = NULL,
-                             caliper = NULL, mahvars = NULL, exact = NULL,
-                             formula = NULL, estimand = "ATT", verbose = FALSE,
-                             is.full.mahalanobis, fast = TRUE,
-                             antiexact = NULL, unit.id = NULL, ...){
-
+matchit2nearest <- function(treat, data, distance, discarded,
+                            ratio = 1, s.weights = NULL, replace = FALSE, m.order = NULL,
+                            caliper = NULL, mahvars = NULL, exact = NULL,
+                            formula = NULL, estimand = "ATT", verbose = FALSE,
+                            is.full.mahalanobis, fast = TRUE,
+                            antiexact = NULL, unit.id = NULL, ...) {
   if (verbose) {
     if (fast) check.package("RcppProgress")
     cat("Nearest neighbor matching... \n")
@@ -283,8 +290,7 @@ matchit2nearest <-  function(treat, data, distance, discarded,
   if (estimand == "ATC") {
     tc <- c("control", "treated")
     focal <- 0
-  }
-  else {
+  } else {
     tc <- c("treated", "control")
     focal <- 1
   }
@@ -293,8 +299,10 @@ matchit2nearest <-  function(treat, data, distance, discarded,
 
   if (is.full.mahalanobis) {
     if (length(attr(terms(formula, data = data), "term.labels")) == 0) {
-      stop(sprintf("Covariates must be specified in the input formula when distance = \"%s\".",
-                   attr(is.full.mahalanobis, "transform")), call. = FALSE)
+      stop(sprintf(
+        "Covariates must be specified in the input formula when distance = \"%s\".",
+        attr(is.full.mahalanobis, "transform")
+      ), call. = FALSE)
     }
     mahvars <- formula
   }
@@ -316,45 +324,42 @@ matchit2nearest <-  function(treat, data, distance, discarded,
   mahcovs <- distance_mat <- NULL
   if (!is.null(mahvars)) {
     transform <- if (is.full.mahalanobis) attr(is.full.mahalanobis, "transform") else "mahalanobis"
-    mahcovs <- transform_covariates(mahvars, data = data, method = transform,
-                                    s.weights = s.weights, treat = treat,
-                                    discarded = discarded)
-  }
-  else if (is.matrix(distance)) {
+    mahcovs <- transform_covariates(mahvars,
+      data = data, method = transform,
+      s.weights = s.weights, treat = treat,
+      discarded = discarded
+    )
+  } else if (is.matrix(distance)) {
     distance_mat <- distance
     distance <- NULL
   }
 
-  #Process caliper
+  # Process caliper
   if (!is.null(caliper)) {
     if (any(names(caliper) != "")) {
       caliper.covs <- caliper[names(caliper) != ""]
       caliper.covs.mat <- get.covs.matrix(reformulate(names(caliper.covs)), data = data)
-    }
-    else {
+    } else {
       caliper.covs.mat <- caliper.covs <- NULL
     }
 
     if (any(names(caliper) == "")) {
       caliper.dist <- caliper[names(caliper) == ""]
-    }
-    else {
+    } else {
       caliper.dist <- NULL
     }
-  }
-  else {
+  } else {
     caliper.dist <- caliper.covs <- NULL
     caliper.covs.mat <- NULL
   }
 
-  #Process antiexact
+  # Process antiexact
   if (!is.null(antiexact)) {
     antiexactcovs <- model.frame(antiexact, data)
     antiexactcovs <- do.call("cbind", lapply(seq_len(ncol(antiexactcovs)), function(i) {
       as.integer(as.factor(antiexactcovs[[i]]))
     }))
-  }
-  else {
+  } else {
     antiexactcovs <- NULL
   }
 
@@ -367,90 +372,114 @@ matchit2nearest <-  function(treat, data, distance, discarded,
   if (!is.null(unit.id) && reuse.max < n1) {
     unit.id <- process.variable.input(unit.id, data)
     unit.id <- factor(exactify(model.frame(unit.id, data = data),
-                               nam = lab, sep = ", ", include_vars = TRUE))
+      nam = lab, sep = ", ", include_vars = TRUE
+    ))
     num_ctrl_unit.ids <- length(unique(unit.id[treat == 0]))
 
-    #If each control unit is a unit.id, unit.ids are meaningless
+    # If each control unit is a unit.id, unit.ids are meaningless
     if (num_ctrl_unit.ids == n0) unit.id <- NULL
-  }
-  else {
+  } else {
     unit.id <- NULL
   }
 
   if (!is.null(exact)) {
     ex <- factor(exactify(model.frame(exact, data = data), nam = lab, sep = ", ", include_vars = TRUE))
 
-    cc <- intersect(as.integer(ex)[treat==1], as.integer(ex)[treat==0])
+    cc <- intersect(as.integer(ex)[treat == 1], as.integer(ex)[treat == 0])
     if (length(cc) == 0) stop("No matches were found.", call. = FALSE)
 
     if (reuse.max < n1) {
-
       e_ratios <- vapply(levels(ex), function(e) {
-        if (is.null(unit.id)) sum(treat[ex == e] == 0)*(reuse.max/sum(treat[ex == e] == 1))
-        else length(unique(unit.id[treat == 0 & ex == e]))*(reuse.max/sum(treat[ex == e] == 1))
+        if (is.null(unit.id)) {
+          sum(treat[ex == e] == 0) * (reuse.max / sum(treat[ex == e] == 1))
+        } else {
+          length(unique(unit.id[treat == 0 & ex == e])) * (reuse.max / sum(treat[ex == e] == 1))
+        }
       }, numeric(1L))
 
       if (any(e_ratios < 1)) {
-        warning(sprintf("Fewer %s units than %s units in some 'exact' strata; not all %s units will get a match.",
-                        tc[2], tc[1], tc[1]), immediate. = TRUE, call. = FALSE)
+        warning(sprintf(
+          "Fewer %s units than %s units in some 'exact' strata; not all %s units will get a match.",
+          tc[2], tc[1], tc[1]
+        ), immediate. = TRUE, call. = FALSE)
       }
       if (ratio > 1 && any(e_ratios < ratio)) {
-        if (is.null(max.controls) || ratio == max.controls)
-          warning(sprintf("Not all %s units will get %s matches.",
-                          tc[1], ratio), immediate. = TRUE, call. = FALSE)
-        else
-          warning(sprintf("Not enough %s units for an average of %s matches per %s unit in all 'exact' strata.",
-                          tc[2], ratio, tc[1]), immediate. = TRUE, call. = FALSE)
+        if (is.null(max.controls) || ratio == max.controls) {
+          warning(sprintf(
+            "Not all %s units will get %s matches.",
+            tc[1], ratio
+          ), immediate. = TRUE, call. = FALSE)
+        } else {
+          warning(sprintf(
+            "Not enough %s units for an average of %s matches per %s unit in all 'exact' strata.",
+            tc[2], ratio, tc[1]
+          ), immediate. = TRUE, call. = FALSE)
+        }
       }
     }
-  }
-  else {
+  } else {
     ex <- NULL
 
     if (reuse.max < n1) {
-
       e_ratios <- {
-        if (is.null(unit.id)) as.numeric(reuse.max)*n0/n1
-        else as.numeric(reuse.max)*num_ctrl_unit.ids/n1
+        if (is.null(unit.id)) {
+          as.numeric(reuse.max) * n0 / n1
+        } else {
+          as.numeric(reuse.max) * num_ctrl_unit.ids / n1
+        }
       }
 
       if (e_ratios < 1) {
-        warning(sprintf("Fewer %s %s than %s units; not all %s units will get a match.",
-                        tc[2], if (is.null(unit.id)) "units" else "unit IDs", tc[1], tc[1]),
-                immediate. = TRUE, call. = FALSE)
-      }
-      else if (e_ratios < ratio) {
-        if (is.null(max.controls) || ratio == max.controls)
-          warning(sprintf("Not all %s units will get %s matches.",
-                          tc[1], ratio),
-                  immediate. = TRUE, call. = FALSE)
-        else
-          warning(sprintf("Not enough %s %s for an average of %s matches per %s unit.",
-                          tc[2], if (is.null(unit.id)) "units" else "unit IDs", ratio, tc[1]),
-                  immediate. = TRUE, call. = FALSE)
+        warning(sprintf(
+          "Fewer %s %s than %s units; not all %s units will get a match.",
+          tc[2], if (is.null(unit.id)) "units" else "unit IDs", tc[1], tc[1]
+        ),
+        immediate. = TRUE, call. = FALSE
+        )
+      } else if (e_ratios < ratio) {
+        if (is.null(max.controls) || ratio == max.controls) {
+          warning(sprintf(
+            "Not all %s units will get %s matches.",
+            tc[1], ratio
+          ),
+          immediate. = TRUE, call. = FALSE
+          )
+        } else {
+          warning(sprintf(
+            "Not enough %s %s for an average of %s matches per %s unit.",
+            tc[2], if (is.null(unit.id)) "units" else "unit IDs", ratio, tc[1]
+          ),
+          immediate. = TRUE, call. = FALSE
+          )
+        }
       }
     }
   }
 
-  #Variable ratio (extremal matching), Ming & Rosenbaum (2000)
-  #Each treated unit get its own value of ratio
+  # Variable ratio (extremal matching), Ming & Rosenbaum (2000)
+  # Each treated unit get its own value of ratio
   if (!is.null(max.controls)) {
     if (is.null(distance)) {
-      if (is.full.mahalanobis) stop(sprintf("'distance' cannot be \"%s\" for variable ratio matching.",
-                                            transform), call. = FALSE)
-      else stop("'distance' cannot be supplied as a matrix for variable ratio matching.", call. = FALSE)
+      if (is.full.mahalanobis) {
+        stop(sprintf(
+          "'distance' cannot be \"%s\" for variable ratio matching.",
+          transform
+        ), call. = FALSE)
+      } else {
+        stop("'distance' cannot be supplied as a matrix for variable ratio matching.", call. = FALSE)
+      }
     }
 
     m <- round(ratio * n1)
     # if (m > sum(treat == 0)) stop("'ratio' must be less than or equal to n0/n1.", call. = FALSE)
 
-    kmax <- floor((m - min.controls*(n1-1)) / (max.controls - min.controls))
+    kmax <- floor((m - min.controls * (n1 - 1)) / (max.controls - min.controls))
     kmin <- n1 - kmax - 1
-    kmed <- m - (min.controls*kmin + max.controls*kmax)
+    kmed <- m - (min.controls * kmin + max.controls * kmax)
 
     ratio0 <- c(rep(min.controls, kmin), kmed, rep(max.controls, kmax))
 
-    #Make sure no units are assigned 0 matches
+    # Make sure no units are assigned 0 matches
     if (any(ratio0 == 0)) {
       ind <- which(ratio0 == 0)
       ratio0[ind] <- 1
@@ -459,87 +488,101 @@ matchit2nearest <-  function(treat, data, distance, discarded,
 
     ratio <- rep(NA_integer_, n1)
 
-    #Order by distance; treated are supposed to have higher values
+    # Order by distance; treated are supposed to have higher values
     ratio[order(distance[treat == 1],
-                decreasing = mean(distance[treat == 1]) > mean(distance[treat != 1]))] <- ratio0
+      decreasing = mean(distance[treat == 1]) > mean(distance[treat != 1])
+    )] <- ratio0
     ratio <- as.integer(ratio)
-  }
-  else {
+  } else {
     ratio <- as.integer(rep(ratio, n1))
   }
 
   m.order <- {
-    if (is.null(distance)) match_arg(m.order, c("data", "random"))
-    else if (!is.null(m.order)) match_arg(m.order, c("largest", "smallest", "random", "data"))
-    else if (estimand == "ATC") "smallest"
-    else "largest"
+    if (is.null(distance)) {
+      match_arg(m.order, c("data", "random"))
+    } else if (!is.null(m.order)) {
+      match_arg(m.order, c("largest", "smallest", "random", "data"))
+    } else if (estimand == "ATC") {
+      "smallest"
+    } else {
+      "largest"
+    }
   }
 
   if (is.null(ex) || !is.null(unit.id)) {
     ord <- switch(m.order,
-                  "largest" = order(distance[treat == 1], decreasing = TRUE),
-                  "smallest" = order(distance[treat == 1], decreasing = FALSE),
-                  "random" = sample.int(n1),
-                  "data" = seq_len(n1))
+      "largest" = order(distance[treat == 1], decreasing = TRUE),
+      "smallest" = order(distance[treat == 1], decreasing = FALSE),
+      "random" = sample.int(n1),
+      "data" = seq_len(n1)
+    )
 
-    mm <- nn_matchC_dispatch(treat, ord, ratio, discarded, reuse.max, distance, distance_mat,
-                             ex, caliper.dist, caliper.covs, caliper.covs.mat, mahcovs,
-                             antiexactcovs, unit.id, verbose)
-
-  }
-  else {
+    mm <- nn_matchC_dispatch(
+      treat, ord, ratio, discarded, reuse.max, distance, distance_mat,
+      ex, caliper.dist, caliper.covs, caliper.covs.mat, mahcovs,
+      antiexactcovs, unit.id, verbose
+    )
+  } else {
     distance_ <- caliper.covs.mat_ <- mahcovs_ <- antiexactcovs_ <- distance_mat_ <- NULL
     mm_list <- lapply(levels(ex), function(e) {
       if (verbose) {
-        cat(sprintf("Matching subgroup %s/%s: %s...\n",
-                    match(e, levels(ex)), nlevels(ex), e))
+        cat(sprintf(
+          "Matching subgroup %s/%s: %s...\n",
+          match(e, levels(ex)), nlevels(ex), e
+        ))
       }
 
       .e <- which(ex == e)
       treat_ <- treat[.e]
       discarded_ <- discarded[.e]
       if (!is.null(distance)) distance_ <- distance[.e]
-      if (!is.null(caliper.covs.mat)) caliper.covs.mat_ <- caliper.covs.mat[.e,,drop = FALSE]
-      if (!is.null(mahcovs)) mahcovs_ <- mahcovs[.e,,drop = FALSE]
-      if (!is.null(antiexactcovs)) antiexactcovs_ <- antiexactcovs[.e,,drop = FALSE]
+      if (!is.null(caliper.covs.mat)) caliper.covs.mat_ <- caliper.covs.mat[.e, , drop = FALSE]
+      if (!is.null(mahcovs)) mahcovs_ <- mahcovs[.e, , drop = FALSE]
+      if (!is.null(antiexactcovs)) antiexactcovs_ <- antiexactcovs[.e, , drop = FALSE]
       if (!is.null(distance_mat)) {
-        .e1 <- which(ex[treat==1] == e)
-        .e0 <- which(ex[treat==0] == e)
+        .e1 <- which(ex[treat == 1] == e)
+        .e0 <- which(ex[treat == 0] == e)
         distance_mat_ <- distance_mat[.e1, .e0, drop = FALSE]
       }
-      ratio_ <- ratio[ex[treat==1]==e]
+      ratio_ <- ratio[ex[treat == 1] == e]
 
       n1_ <- sum(treat_ == 1)
       ord_ <- switch(m.order,
-                     "largest" = order(distance_[treat_ == 1], decreasing = TRUE),
-                     "smallest" = order(distance_[treat_ == 1], decreasing = FALSE),
-                     "random" = sample.int(n1_),
-                     "data" = seq_len(n1_))
+        "largest" = order(distance_[treat_ == 1], decreasing = TRUE),
+        "smallest" = order(distance_[treat_ == 1], decreasing = FALSE),
+        "random" = sample.int(n1_),
+        "data" = seq_len(n1_)
+      )
 
-      mm_ <- nn_matchC_dispatch(treat_, ord_, ratio_, discarded_, reuse.max, distance_, distance_mat_,
-                               NULL, caliper.dist, caliper.covs, caliper.covs.mat_, mahcovs_,
-                               antiexactcovs_, NULL, verbose)
+      mm_ <- nn_matchC_dispatch(
+        treat_, ord_, ratio_, discarded_, reuse.max, distance_, distance_mat_,
+        NULL, caliper.dist, caliper.covs, caliper.covs.mat_, mahcovs_,
+        antiexactcovs_, NULL, verbose
+      )
 
-      #Ensure matched indices correspond to indices in full sample, not subgroup
+      # Ensure matched indices correspond to indices in full sample, not subgroup
       mm_[] <- seq_along(treat)[.e][mm_]
       mm_
     })
 
-    mm <- do.call("rbind", mm_list)[lab1,, drop = FALSE]
+    mm_list <- Filter(length, mm_list)
+
+    mm <- do.call("rbind", mm_list)[lab1, , drop = FALSE]
   }
 
   if (verbose) cat("Calculating matching weights... ")
 
   if (reuse.max > 1) {
     psclass <- NULL
-  }
-  else {
+  } else {
     psclass <- mm2subclass(mm, treat)
   }
 
-  res <- list(match.matrix = nummm2charmm(mm, treat),
-              subclass = psclass,
-              weights = weights.matrix(mm, treat))
+  res <- list(
+    match.matrix = nummm2charmm(mm, treat),
+    subclass = psclass,
+    weights = weights.matrix(mm, treat)
+  )
 
   if (verbose) cat("Done.\n")
 
@@ -554,13 +597,16 @@ matchit2nearest <-  function(treat, data, distance, discarded,
 nn_matchC_dispatch <- function(treat, ord, ratio, discarded, reuse.max, distance, distance_mat, ex, caliper.dist,
                                caliper.covs, caliper.covs.mat, mahcovs, antiexactcovs, unit.id, verbose) {
   if (is.null(distance_mat) && is.null(mahcovs)) {
-    nn_matchC_vec(treat, ord, ratio, discarded, reuse.max, distance,
-                  ex, caliper.dist, caliper.covs, caliper.covs.mat,
-                  antiexactcovs, unit.id, verbose)
-  }
-  else {
-    nn_matchC(treat, ord, ratio, discarded, reuse.max, distance, distance_mat,
-              ex, caliper.dist, caliper.covs, caliper.covs.mat, mahcovs,
-              antiexactcovs, unit.id, verbose)
+    nn_matchC_vec(
+      treat, ord, ratio, discarded, reuse.max, distance,
+      ex, caliper.dist, caliper.covs, caliper.covs.mat,
+      antiexactcovs, unit.id, verbose
+    )
+  } else {
+    nn_matchC(
+      treat, ord, ratio, discarded, reuse.max, distance, distance_mat,
+      ex, caliper.dist, caliper.covs, caliper.covs.mat, mahcovs,
+      antiexactcovs, unit.id, verbose
+    )
   }
 }
